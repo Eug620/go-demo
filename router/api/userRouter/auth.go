@@ -2,8 +2,8 @@
  * @Author       : eug yyh3531@163.com
  * @Date         : 2023-01-31 15:57:46
  * @LastEditors  : eug yyh3531@163.com
- * @LastEditTime : 2023-01-31 17:43:45
- * @FilePath     : /go-server/router/api/userRouter/auth.go
+ * @LastEditTime : 2023-02-01 11:07:55
+ * @FilePath     : /go-demo/router/api/userRouter/auth.go
  * @Description  : filename
  *
  * Copyright (c) 2023 by ${git_name_email}, All Rights Reserved.
@@ -13,7 +13,10 @@ package userRouter
 import (
 	"fmt"
 	"log"
+	engine "myblog-server/helper"
 	UserMiddleWare "myblog-server/middleware/user"
+
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,16 +27,38 @@ type User struct {
 	account int64 `json:"account"`
 }
 
+var redisHelper *engine.RedisHelper
+
 func UserAuthRouter(g *gin.RouterGroup) {
+	redisHelper = engine.GetRedisHelper()
 
 	g.GET("/login", func(ctx *gin.Context) {
+		fmt.Println("env: ", os.Getenv("env"))
+
 		// 获取全局中间件写入的值
 		req, _ := ctx.Get("request")
 		fmt.Println("request:", req)
 
 		// 取值
 		token := ctx.GetHeader("token") // 获取请求头参数
-		ctx.JSON(200, gin.H{"msg": "login success!", "token": token, "req": req})
+
+		// 测试redis
+		data, _ := redisHelper.HGetAll("type_hash").Result()
+		fmt.Println(data)
+
+		ctx.JSON(200, gin.H{"msg": "login success!", "token": token, "data": data, "req": req})
+	})
+
+	g.GET("/redis/get", func(ctx *gin.Context) {
+		data, _ := redisHelper.HGetAll("type_hash").Result()
+		ctx.JSON(200, gin.H{"msg": "redis get success!", "data": data})
+
+	})
+	g.GET("/redis/set", func(ctx *gin.Context) {
+		name := ctx.DefaultQuery("name", "张三")
+		password := ctx.DefaultQuery("password", "22")
+		_ = redisHelper.HSet("type_hash", name, password).Err()
+		ctx.JSON(200, gin.H{"msg": "redis set success!"})
 	})
 
 	g.GET("/auth", UserMiddleWare.AuthMiddleWare(), func(ctx *gin.Context) {
